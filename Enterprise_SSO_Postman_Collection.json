@@ -1,0 +1,422 @@
+{
+  "info": {
+    "name": "Enterprise SSO Management API",
+    "description": "Postman collection for the Enterprise SSO Management API. Ensure you set the `baseUrl` variable, and log in to set the `token` variable.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3003",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "YOUR_BEARER_TOKEN_HERE",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Health & Status",
+      "item": [
+        {
+          "name": "Basic Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Detailed Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/detailed",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "API Status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/status",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Auth (OIDC/OAuth2)",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"token\", jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nip\": \"admin\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/logout",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Authorize",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/auth/authorize",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Token",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/token",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "User Info",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/auth/userinfo",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Clients",
+      "item": [
+        {
+          "name": "Get All Clients",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/clients"
+          }
+        },
+        {
+          "name": "Get Client By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/clients/1"
+          }
+        },
+        {
+          "name": "Create Client",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/clients",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Client App\",\n  \"redirectUris\": [\"http://localhost:3001/callback\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Client",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/clients/1"
+          }
+        },
+        {
+          "name": "Delete Client",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/clients/1"
+          }
+        },
+        {
+          "name": "Regenerate Secret",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/clients/1/regenerate-secret"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/users"
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/users/1"
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/users",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"securepassword\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/users/1"
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/users/1"
+          }
+        },
+        {
+          "name": "Toggle User Status",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/users/1/status"
+          }
+        },
+        {
+          "name": "Reset MFA",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/users/1/reset-mfa"
+          }
+        },
+        {
+          "name": "Unlock Account",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/users/1/unlock"
+          }
+        },
+        {
+          "name": "Force Password Change",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/users/1/force-password-change"
+          }
+        },
+        {
+          "name": "Revoke All Sessions",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/users/1/revoke-sessions"
+          }
+        },
+        {
+          "name": "Get Allowed Apps",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/users/1/allowed-applications"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Providers",
+      "item": [
+        {
+          "name": "Get All Providers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/providers"
+          }
+        },
+        {
+          "name": "Get Recommendations",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/providers/recommendations"
+          }
+        },
+        {
+          "name": "Get Provider By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/providers/1"
+          }
+        },
+        {
+          "name": "Create Provider",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/providers"
+          }
+        },
+        {
+          "name": "Test Connection",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/providers/test"
+          }
+        },
+        {
+          "name": "Toggle Status",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/providers/1/toggle"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Roles",
+      "item": [
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/roles"
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/roles",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin\",\n  \"permissions\": [\"read\", \"write\"]\n}"
+            }
+          }
+        },
+        {
+          "name": "Assign User Role",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/roles/user/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Sessions",
+      "item": [
+        {
+          "name": "Get All Sessions",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/sessions"
+          }
+        },
+        {
+          "name": "Revoke Session by ID",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/sessions/session123"
+          }
+        },
+        {
+          "name": "Revoke User Sessions",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/sessions/user/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Audit",
+      "item": [
+        {
+          "name": "Get Audit Logs",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/audit"
+          }
+        },
+        {
+          "name": "Get Audit Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/audit/stats"
+          }
+        }
+      ]
+    }
+  ]
+}
