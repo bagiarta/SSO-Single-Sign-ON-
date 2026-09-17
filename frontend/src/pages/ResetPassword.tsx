@@ -37,7 +37,17 @@ export const ResetPassword: React.FC = () => {
         message: 'Your password has been successfully reset. Redirecting to login...' 
       });
       setTimeout(() => {
-        navigate('/login');
+        const clientId = searchParams.get('client_id');
+        const redirectUri = searchParams.get('redirect_uri');
+        const appName = searchParams.get('app_name');
+        
+        const params = new URLSearchParams();
+        if (clientId) params.append('client_id', clientId);
+        if (redirectUri) params.append('redirect_uri', redirectUri);
+        if (appName) params.append('app_name', appName);
+        
+        const queryString = params.toString();
+        navigate(queryString ? `/login?${queryString}` : '/login');
       }, 3000);
     } catch (err: any) {
       setStatus({ 

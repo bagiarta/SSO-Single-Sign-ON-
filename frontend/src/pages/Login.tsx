@@ -42,6 +42,16 @@ export const Login: React.FC = () => {
 
       const res = await axios.post(`${API_URL}/auth/login`, payload);
 
+      if (res.data.force_password_change) {
+        const params = new URLSearchParams({ token: res.data.token });
+        if (clientId) params.append('client_id', clientId);
+        if (redirectUri) params.append('redirect_uri', redirectUri);
+        if (appName) params.append('app_name', appName);
+        
+        navigate(`/reset-password?${params.toString()}`);
+        return;
+      }
+
       if (res.data.redirect_to) {
         // OAuth flow: Redirect back to client app with authorization code
         window.location.href = res.data.redirect_to;

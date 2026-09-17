@@ -127,7 +127,7 @@ export async function createUser(req: Request, res: Response) {
       cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks,
       birth_date, gender, bio, timezone, locale,
       additional_emails = [], phones = [], addresses = [], roles = [],
-      password, force_password_change, allowed_applications = [], allow_dashboard_access = false
+      password, force_password_change, allow_dashboard_access = false
     } = req.body;
 
     if (!nip || !username || !first_name || !last_name) {
@@ -206,15 +206,7 @@ export async function createUser(req: Request, res: Response) {
         }
       }
 
-      // 8. Insert Allowed Applications
-      if (Array.isArray(allowed_applications) && allowed_applications.length > 0) {
-        for (const appId of allowed_applications) {
-          await client.query(
-            `INSERT INTO user_allowed_applications (user_id, client_app_id) VALUES ($1, $2)`,
-            [userId, appId]
-          );
-        }
-      }
+      // Allowed applications are now managed via GBAC (groups)
 
       return userId;
     });
@@ -269,7 +261,7 @@ export async function updateUser(req: Request, res: Response) {
       nip, email, first_name, last_name, status,
       cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks,
       birth_date, gender, bio, timezone, locale, roles,
-      password, force_password_change, allowed_applications, allow_dashboard_access
+      password, force_password_change, allow_dashboard_access
     } = req.body;
 
     const checkResult = await query('SELECT id, email FROM users WHERE id = $1 AND deleted_at IS NULL', [id]);
@@ -325,13 +317,7 @@ export async function updateUser(req: Request, res: Response) {
         }
       }
 
-      // Update Allowed Applications if provided
-      if (Array.isArray(allowed_applications)) {
-        await client.query('DELETE FROM user_allowed_applications WHERE user_id = $1', [id]);
-        for (const appId of allowed_applications) {
-          await client.query('INSERT INTO user_allowed_applications (user_id, client_app_id) VALUES ($1, $2)', [id, appId]);
-        }
-      }
+      // Allowed applications are now managed via GBAC (groups)
     });
 
     await createAuditLog('USER_UPDATE', null, 'users', 'update', 'success', { userId: id });
@@ -484,9 +470,17 @@ export async function getAllowedApplications(req: Request, res: Response) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get allowed application client_app_ids
+    // Get allowed application client_app_ids based on GBAC rules
     const result = await query(
-      'SELECT client_app_id FROM user_allowed_applications WHERE user_id = $1',
+      `SELECT ca.id as client_app_id
+       FROM client_applications ca
+       WHERE ca.access_type = 'public'
+          OR (ca.access_type = 'restricted' AND ca.id IN (
+             SELECT gaa.client_app_id
+             FROM group_allowed_applications gaa
+             JOIN user_groups ug ON ug.group_id = gaa.group_id
+             WHERE ug.user_id = $1
+          ))`,
       [userId]
     );
 

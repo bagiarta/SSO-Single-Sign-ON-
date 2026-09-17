@@ -35,7 +35,7 @@ export async function login(req: Request, res: Response) {
 
     // Find user
     const userResult = await query(
-      'SELECT id, nip, email, username, password_hash, status, locked_until, failed_login_attempts, allow_dashboard_access FROM users WHERE nip = $1',
+      'SELECT id, nip, email, username, password_hash, status, locked_until, failed_login_attempts, allow_dashboard_access, force_password_change FROM users WHERE nip = $1',
       [nip]
     );
 
@@ -82,6 +82,21 @@ export async function login(req: Request, res: Response) {
       );
 
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.force_password_change) {
+      // User must change their password before they can log in
+      const resetToken = jwt.sign(
+        { sub: user.id, type: 'force_password_change' },
+        JWT_SECRET as string,
+        { expiresIn: '15m' }
+      );
+      
+      return res.status(200).json({ 
+        force_password_change: true,
+        token: resetToken,
+        message: 'You are required to change your password.'
+      });
     }
 
     // Success login. Reset failed attempts
@@ -658,6 +673,53 @@ export async function forgotPassword(_req: Request, res: Response) {
 /**
  * 6. Reset Password endpoint
  */
-export async function resetPassword(_req: Request, res: Response) {
-  return res.status(403).json({ error: 'Reset password hanya dapat dilakukan oleh Administrator SSO.' });
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, String(JWT_SECRET));
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    if (decoded.type !== 'force_password_change') {
+      return res.status(400).json({ error: 'Invalid token type' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
+    const userId = decoded.sub;
+    
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    await query(
+      'UPDATE users SET password_hash = $1, force_password_change = 0, failed_login_attempts = 0, locked_until = NULL, updated_at = GETDATE() WHERE id = $2',
+      [password_hash, userId]
+    );
+    
+    await createAuditLog(
+      'USER_PWD_RESET',
+      userId,
+      'users',
+      'reset_password',
+      'success',
+      { message: 'User reset their password due to force change' },
+      req.ip || req.socket?.remoteAddress || '',
+      req.headers['user-agent'] || '',
+      parseDeviceInfo(req.headers['user-agent'] || '')
+    );
+
+    return res.json({ message: 'Password has been successfully updated' });
+  } catch (error: any) {
+    logger.error('Reset password error', { error: error.message });
+    return res.status(500).json({ error: 'server_error' });
+  }
 }
