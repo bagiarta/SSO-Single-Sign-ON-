@@ -15,6 +15,7 @@ import ActiveSessions from './pages/ActiveSessions';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import MasterDataSettings from './pages/MasterDataSettings';
 import ProtectedRoute from './components/ProtectedRoute';
 
 /**
@@ -44,6 +45,7 @@ const App: React.FC = () => {
               <Route path="/groups" element={<GroupList />} />
               <Route path="/sessions" element={<ActiveSessions />} />
               <Route path="/audit" element={<AuditLogs />} />
+              <Route path="/settings/master-data" element={<MasterDataSettings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

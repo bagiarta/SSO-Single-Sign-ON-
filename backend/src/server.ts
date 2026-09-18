@@ -75,6 +75,7 @@ app.get('/health', (_req, res) => {
 });
 
 import { groupRouter } from './routes/groups';
+import masterDataRouter from './routes/masterData';
 
 // Register provider and audit API routes
 app.use('/api/providers', authenticateToken, providerRouter);
@@ -85,6 +86,7 @@ app.use('/api/groups', authenticateToken, groupRouter);
 app.use('/api/clients', authenticateToken, clientRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/sessions', sessionRouter);
+app.use('/api/master', authenticateToken, masterDataRouter);
 app.get('/api/status', (_req, res) => {
   res.json({
     message: 'Enterprise SSO Management API',

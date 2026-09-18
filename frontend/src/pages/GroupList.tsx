@@ -20,6 +20,8 @@ export const GroupList: React.FC = () => {
   const [formData, setFormData] = useState<{ id?: string, name: string, description: string, user_ids: string[], client_ids: string[] }>({
     name: '', description: '', user_ids: [], client_ids: []
   });
+  
+  const [userSearchTerm, setUserSearchTerm] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -29,7 +31,7 @@ export const GroupList: React.FC = () => {
 
       const [groupsRes, usersRes, clientsRes] = await Promise.all([
         axios.get(`${API_URL}/groups`, { headers }),
-        axios.get(`${API_URL}/users`, { headers }),
+        axios.get(`${API_URL}/users?limit=10000`, { headers }),
         axios.get(`${API_URL}/clients`, { headers }),
       ]);
       setGroups(groupsRes.data);
@@ -48,6 +50,7 @@ export const GroupList: React.FC = () => {
 
   const handleOpenCreate = () => {
     setFormData({ name: '', description: '', user_ids: [], client_ids: [] });
+    setUserSearchTerm('');
     setOpenForm(true);
   };
 
@@ -64,6 +67,7 @@ export const GroupList: React.FC = () => {
         user_ids: g.users?.map((u: any) => u.id) || [],
         client_ids: g.allowed_apps?.map((c: any) => c.id) || []
       });
+      setUserSearchTerm('');
       setOpenForm(true);
     } catch (error) {
       console.error('Error fetching group details', error);
@@ -116,6 +120,19 @@ export const GroupList: React.FC = () => {
         : [...prev.client_ids, clientId]
     }));
   };
+
+  const getFullName = (u: any) => {
+    if (u.name) return u.name;
+    if (u.first_name || u.last_name) return `${u.first_name || ''} ${u.last_name || ''}`.trim();
+    return u.username || '';
+  };
+
+  const filteredUsers = (Array.isArray(allUsers) ? allUsers : []).filter(u => 
+    getFullName(u).toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+    (u.username || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+    (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    (u.nip || '').toLowerCase().includes(userSearchTerm.toLowerCase())
+  );
 
   return (
     <Box>
@@ -214,22 +231,75 @@ export const GroupList: React.FC = () => {
             
             <Grid container spacing={4}>
               <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" fontWeight={600} mb={1}>Group Members (Users)</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>Group Members (Users)</Typography>
+                  {filteredUsers.length > 0 && (
+                    <FormControlLabel
+                      control={
+                        <Checkbox 
+                          size="small"
+                          checked={filteredUsers.every(u => formData.user_ids.includes(u.id))}
+                          indeterminate={filteredUsers.some(u => formData.user_ids.includes(u.id)) && !filteredUsers.every(u => formData.user_ids.includes(u.id))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              const newIds = new Set(formData.user_ids);
+                              filteredUsers.forEach(u => newIds.add(u.id));
+                              setFormData(prev => ({ ...prev, user_ids: Array.from(newIds) }));
+                            } else {
+                              const filteredIds = new Set(filteredUsers.map(u => u.id));
+                              setFormData(prev => ({ ...prev, user_ids: prev.user_ids.filter(id => !filteredIds.has(id)) }));
+                            }
+                          }}
+                        />
+                      }
+                      label={<Typography variant="body2" color="text.secondary">Select All</Typography>}
+                    />
+                  )}
+                </Box>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Search users..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                  sx={{ mb: 1 }}
+                />
                 <Paper variant="outlined" sx={{ maxHeight: 300, overflow: 'auto', p: 1 }}>
-                  {(Array.isArray(allUsers) ? allUsers : []).map(user => (
+                  {filteredUsers.map(user => (
                     <Box key={user.id}>
                       <FormControlLabel
                         control={<Checkbox checked={formData.user_ids.includes(user.id)} onChange={() => toggleUser(user.id)} />}
-                        label={<Typography variant="body2">{user.name || user.username} ({user.email})</Typography>}
+                        label={<Typography variant="body2">{getFullName(user)} ({user.email || user.nip})</Typography>}
                       />
                     </Box>
                   ))}
-                  {(!Array.isArray(allUsers) || allUsers.length === 0) && <Typography variant="body2" p={2}>No users available.</Typography>}
+                  {filteredUsers.length === 0 && <Typography variant="body2" p={2}>No users found.</Typography>}
                 </Paper>
               </Grid>
               
               <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" fontWeight={600} mb={1}>Allowed Applications</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>Allowed Applications</Typography>
+                  {allClients && allClients.length > 0 && (
+                    <FormControlLabel
+                      control={
+                        <Checkbox 
+                          size="small"
+                          checked={formData.client_ids.length === allClients.length && allClients.length > 0}
+                          indeterminate={formData.client_ids.length > 0 && formData.client_ids.length < allClients.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({ ...prev, client_ids: allClients.map(c => c.id) }));
+                            } else {
+                              setFormData(prev => ({ ...prev, client_ids: [] }));
+                            }
+                          }}
+                        />
+                      }
+                      label={<Typography variant="body2" color="text.secondary">Select All</Typography>}
+                    />
+                  )}
+                </Box>
                 <Paper variant="outlined" sx={{ maxHeight: 300, overflow: 'auto', p: 1 }}>
                   {(Array.isArray(allClients) ? allClients : []).map(client => (
                     <Box key={client.id}>

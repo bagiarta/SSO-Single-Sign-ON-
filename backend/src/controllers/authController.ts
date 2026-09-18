@@ -33,9 +33,12 @@ export async function login(req: Request, res: Response) {
       return res.status(400).json({ error: 'NIP and password are required' });
     }
 
-    // Find user
+    // Find user and their roles
     const userResult = await query(
-      'SELECT id, nip, email, username, password_hash, status, locked_until, failed_login_attempts, allow_dashboard_access, force_password_change FROM users WHERE nip = $1',
+      `SELECT u.id, u.nip, u.email, u.username, u.password_hash, u.status, u.locked_until, 
+              u.failed_login_attempts, u.allow_dashboard_access, u.force_password_change,
+              (SELECT STRING_AGG(r.name, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) as roles
+       FROM users u WHERE u.nip = $1`,
       [nip]
     );
 
@@ -266,7 +269,18 @@ export async function login(req: Request, res: Response) {
 
 
     // Default: Return dashboard login response
-    return res.json({ success: true, token: sessionToken, user: { id: user.id, nip: user.nip, email: user.email, username: user.username } });
+    const userRoles = user.roles ? user.roles.split(',') : [];
+    return res.json({ 
+      success: true, 
+      token: sessionToken, 
+      user: { 
+        id: user.id, 
+        nip: user.nip, 
+        email: user.email, 
+        username: user.username,
+        roles: userRoles
+      } 
+    });
 
   } catch (error: any) {
     logger.error('Login error', { error: error.message });

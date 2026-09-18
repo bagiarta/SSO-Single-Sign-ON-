@@ -5,6 +5,7 @@ import { configureStore } from '@reduxjs/toolkit';
  */
 import providerReducer from './providerSlice';
 import userReducer from './userSlice';
+import masterDataReducer from './masterDataSlice';
 
 /**
  * Redux store configuration for Enterprise SSO Management
@@ -13,6 +14,7 @@ export const store = configureStore({
   reducer: {
     providers: providerReducer,
     users: userReducer,
+    masterData: masterDataReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

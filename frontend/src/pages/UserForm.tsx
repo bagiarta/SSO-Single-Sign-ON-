@@ -23,6 +23,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { createUser, updateUser, fetchUserById, clearCurrentUser } from '../store/userSlice';
+import { fetchMasterData } from '../store/masterDataSlice';
 
 const UserForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +32,7 @@ const UserForm: React.FC = () => {
   const isEditMode = Boolean(id);
   
   const { currentUser, loading, error } = useAppSelector((state) => state.users);
+  const masterData = useAppSelector((state) => state.masterData);
 
   const [formData, setFormData] = useState({
     nip: '',
@@ -44,16 +46,14 @@ const UserForm: React.FC = () => {
     bio: '',
     timezone: '',
     locale: '',
-    cabang: '',
-    regency: '',
-    loc_code: '',
-    location_name: '',
-    cost_center_name: '',
-    job_type: '',
-    position: '',
-    grade: '',
+    branch_id: '',
+    location_id: '',
+    department_id: '',
+    position_id: '',
+    grade_id: '',
+    emp_type_id: '',
+    cost_center_id: '',
     join_date: '',
-    emp_type: '',
     start_work: '',
     last_day: '',
     remarks: '',
@@ -74,6 +74,8 @@ const UserForm: React.FC = () => {
     } else {
       dispatch(clearCurrentUser());
     }
+
+    dispatch(fetchMasterData());
 
     // Fetch roles
     const fetchRoles = async () => {
@@ -101,16 +103,14 @@ const UserForm: React.FC = () => {
         bio: currentUser.bio || '',
         timezone: currentUser.timezone || '',
         locale: currentUser.locale || '',
-        cabang: currentUser.cabang || '',
-        regency: currentUser.regency || '',
-        loc_code: currentUser.loc_code || '',
-        location_name: currentUser.location_name || '',
-        cost_center_name: currentUser.cost_center_name || '',
-        job_type: currentUser.job_type || '',
-        position: currentUser.position || '',
-        grade: currentUser.grade || '',
+        branch_id: currentUser.branch_id || '',
+        location_id: currentUser.location_id || '',
+        department_id: currentUser.department_id || '',
+        position_id: currentUser.position_id || '',
+        grade_id: currentUser.grade_id || '',
+        emp_type_id: currentUser.emp_type_id || '',
+        cost_center_id: currentUser.cost_center_id || '',
         join_date: currentUser.join_date ? currentUser.join_date.substring(0, 10) : '',
-        emp_type: currentUser.emp_type || '',
         start_work: currentUser.start_work ? currentUser.start_work.substring(0, 10) : '',
         last_day: currentUser.last_day ? currentUser.last_day.substring(0, 10) : '',
         remarks: currentUser.remarks || '',
@@ -272,35 +272,65 @@ const UserForm: React.FC = () => {
           </Typography>
           <Grid container spacing={3}>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Cabang" name="cabang" value={formData.cabang} onChange={handleChange} />
+              <TextField fullWidth select label="Cabang (Branch)" name="branch_id" value={formData.branch_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.branches.map((b) => (
+                  <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Regency" name="regency" value={formData.regency} onChange={handleChange} />
+              <TextField fullWidth select label="Lokasi (Location)" name="location_id" value={formData.location_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.locations.map((l) => (
+                  <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Loc Code" name="loc_code" value={formData.loc_code} onChange={handleChange} />
+              <TextField fullWidth select label="Departemen" name="department_id" value={formData.department_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.departments.map((d) => (
+                  <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Location Name" name="location_name" value={formData.location_name} onChange={handleChange} />
+              <TextField fullWidth select label="Posisi (Position)" name="position_id" value={formData.position_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.positions.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Cost Center Name" name="cost_center_name" value={formData.cost_center_name} onChange={handleChange} />
+              <TextField fullWidth select label="Grade" name="grade_id" value={formData.grade_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.grades.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Job Type" name="job_type" value={formData.job_type} onChange={handleChange} />
+              <TextField fullWidth select label="Employee Type" name="emp_type_id" value={formData.emp_type_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.employeeTypes.map((et) => (
+                  <MenuItem key={et.id} value={et.id}>{et.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Position" name="position" value={formData.position} onChange={handleChange} />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Grade" name="grade" value={formData.grade} onChange={handleChange} />
+              <TextField fullWidth select label="Cost Center" name="cost_center_id" value={formData.cost_center_id} onChange={handleChange}>
+                <MenuItem value=""><em>None</em></MenuItem>
+                {masterData.costCenters.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField fullWidth type="date" label="Join Date" name="join_date" value={formData.join_date} onChange={handleChange} InputLabelProps={{ shrink: true }} />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField fullWidth label="Employee Type" name="emp_type" value={formData.emp_type} onChange={handleChange} />
-            </Grid>
+
             <Grid item xs={12} sm={6}>
               <TextField fullWidth type="date" label="Start Work" name="start_work" value={formData.start_work} onChange={handleChange} InputLabelProps={{ shrink: true }} />
             </Grid>

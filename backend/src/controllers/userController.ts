@@ -17,11 +17,18 @@ export async function getUsers(req: Request, res: Response) {
     let queryStr = `
       SELECT u.id, u.nip, u.email, u.username, u.first_name, u.last_name, u.status, u.created_at, u.last_login_at,
              u.mfa_enabled, u.locked_until, u.force_password_change, u.failed_login_attempts, u.allow_dashboard_access,
-             u.cabang, u.regency, u.loc_code, u.location_name, u.cost_center_name, u.job_type, u.position, u.grade, u.join_date, u.emp_type, u.start_work, u.last_day, u.remarks,
+             mb.name as cabang, u.regency, ml.code as loc_code, ml.name as location_name, mcc.name as cost_center_name, met.name as job_type, mp.name as position, mg.name as grade, u.join_date, met.name as emp_type, u.start_work, u.last_day, u.remarks,
+             u.branch_id, u.location_id, u.department_id, u.position_id, u.grade_id, u.emp_type_id, u.cost_center_id,
              p.gender, p.timezone, p.locale,
              (SELECT STRING_AGG(r.name, ',') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id) as roles
       FROM users u
       LEFT JOIN user_profiles p ON u.id = p.user_id
+      LEFT JOIN master_branches mb ON u.branch_id = mb.id
+      LEFT JOIN master_locations ml ON u.location_id = ml.id
+      LEFT JOIN master_cost_centers mcc ON u.cost_center_id = mcc.id
+      LEFT JOIN master_positions mp ON u.position_id = mp.id
+      LEFT JOIN master_grades mg ON u.grade_id = mg.id
+      LEFT JOIN master_employee_types met ON u.emp_type_id = met.id
       WHERE u.deleted_at IS NULL
     `;
     const queryParams: any[] = [];
@@ -76,10 +83,17 @@ export async function getUserById(req: Request, res: Response) {
     const userResult = await query(
       `SELECT u.id, u.nip, u.email, u.username, u.first_name, u.last_name, u.status, u.created_at, u.updated_at, u.last_login_at,
               u.mfa_enabled, u.locked_until, u.force_password_change, u.failed_login_attempts, u.allow_dashboard_access,
-              u.cabang, u.regency, u.loc_code, u.location_name, u.cost_center_name, u.job_type, u.position, u.grade, u.join_date, u.emp_type, u.start_work, u.last_day, u.remarks,
+              mb.name as cabang, u.regency, ml.code as loc_code, ml.name as location_name, mcc.name as cost_center_name, met.name as job_type, mp.name as position, mg.name as grade, u.join_date, met.name as emp_type, u.start_work, u.last_day, u.remarks,
+              u.branch_id, u.location_id, u.department_id, u.position_id, u.grade_id, u.emp_type_id, u.cost_center_id,
               p.birth_date, p.gender, p.bio, p.timezone, p.locale
        FROM users u
        LEFT JOIN user_profiles p ON u.id = p.user_id
+       LEFT JOIN master_branches mb ON u.branch_id = mb.id
+       LEFT JOIN master_locations ml ON u.location_id = ml.id
+       LEFT JOIN master_cost_centers mcc ON u.cost_center_id = mcc.id
+       LEFT JOIN master_positions mp ON u.position_id = mp.id
+       LEFT JOIN master_grades mg ON u.grade_id = mg.id
+       LEFT JOIN master_employee_types met ON u.emp_type_id = met.id
        WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [id]
     );
@@ -124,7 +138,8 @@ export async function createUser(req: Request, res: Response) {
   try {
     const { 
       nip, email, username, first_name, last_name, status = 'active',
-      cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks,
+      regency, join_date, start_work, last_day, remarks,
+      branch_id, location_id, department_id, position_id, grade_id, emp_type_id, cost_center_id,
       birth_date, gender, bio, timezone, locale,
       additional_emails = [], phones = [], addresses = [], roles = [],
       password, force_password_change, allow_dashboard_access = false
@@ -147,10 +162,10 @@ export async function createUser(req: Request, res: Response) {
     const newUser = await transaction(async (client) => {
       // 1. Insert User
       const userRes = await client.query(
-        `INSERT INTO users (nip, email, username, first_name, last_name, status, password_hash, force_password_change, allow_dashboard_access, cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks)
+        `INSERT INTO users (nip, email, username, first_name, last_name, status, password_hash, force_password_change, allow_dashboard_access, regency, join_date, start_work, last_day, remarks, branch_id, location_id, department_id, position_id, grade_id, emp_type_id, cost_center_id)
          OUTPUT INSERTED.id
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
-        [nip, safeEmail, username, first_name, last_name, status, pwd_hash, fpc, allowDashboard, cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+        [nip, safeEmail, username, first_name, last_name, status, pwd_hash, fpc, allowDashboard, regency, join_date, start_work, last_day, remarks, branch_id || null, location_id || null, department_id || null, position_id || null, grade_id || null, emp_type_id || null, cost_center_id || null]
       );
       const userId = userRes.rows[0].id;
 
@@ -259,7 +274,8 @@ export async function updateUser(req: Request, res: Response) {
     const { id } = req.params;
     const { 
       nip, email, first_name, last_name, status,
-      cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks,
+      regency, join_date, start_work, last_day, remarks,
+      branch_id, location_id, department_id, position_id, grade_id, emp_type_id, cost_center_id,
       birth_date, gender, bio, timezone, locale, roles,
       password, force_password_change, allow_dashboard_access
     } = req.body;
@@ -286,21 +302,20 @@ export async function updateUser(req: Request, res: Response) {
          allow_dashboard_access = COALESCE($6, allow_dashboard_access),
          nip = COALESCE($7, nip),
          email = COALESCE($8, email),
-         cabang = COALESCE($9, cabang),
-         regency = COALESCE($10, regency),
-         loc_code = COALESCE($11, loc_code),
-         location_name = COALESCE($12, location_name),
-         cost_center_name = COALESCE($13, cost_center_name),
-         job_type = COALESCE($14, job_type),
-         position = COALESCE($15, position),
-         grade = COALESCE($16, grade),
-         join_date = COALESCE($17, join_date),
-         emp_type = COALESCE($18, emp_type),
-         start_work = COALESCE($19, start_work),
-         last_day = COALESCE($20, last_day),
-         remarks = COALESCE($21, remarks),
-         updated_at = GETDATE() WHERE id = $22`,
-        [first_name, last_name, status, pwd_hash, fpcParam, allowDashboardParam, nip, email, cabang, regency, loc_code, location_name, cost_center_name, job_type, position, grade, join_date, emp_type, start_work, last_day, remarks, id]
+         regency = COALESCE($9, regency),
+         join_date = COALESCE($10, join_date),
+         start_work = COALESCE($11, start_work),
+         last_day = COALESCE($12, last_day),
+         remarks = COALESCE($13, remarks),
+         branch_id = COALESCE($14, branch_id),
+         location_id = COALESCE($15, location_id),
+         department_id = COALESCE($16, department_id),
+         position_id = COALESCE($17, position_id),
+         grade_id = COALESCE($18, grade_id),
+         emp_type_id = COALESCE($19, emp_type_id),
+         cost_center_id = COALESCE($20, cost_center_id),
+         updated_at = GETDATE() WHERE id = $21`,
+        [first_name, last_name, status, pwd_hash, fpcParam, allowDashboardParam, nip, email, regency, join_date, start_work, last_day, remarks, branch_id !== undefined ? (branch_id || null) : undefined, location_id !== undefined ? (location_id || null) : undefined, department_id !== undefined ? (department_id || null) : undefined, position_id !== undefined ? (position_id || null) : undefined, grade_id !== undefined ? (grade_id || null) : undefined, emp_type_id !== undefined ? (emp_type_id || null) : undefined, cost_center_id !== undefined ? (cost_center_id || null) : undefined, id]
       );
 
       await client.query(

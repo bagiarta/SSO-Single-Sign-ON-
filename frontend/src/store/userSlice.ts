@@ -45,6 +45,14 @@ export interface User {
   grade?: string;
   join_date?: string;
   emp_type?: string;
+  
+  branch_id?: string;
+  location_id?: string;
+  department_id?: string;
+  position_id?: string;
+  grade_id?: string;
+  emp_type_id?: string;
+  cost_center_id?: string;
   start_work?: string;
   last_day?: string;
   remarks?: string;

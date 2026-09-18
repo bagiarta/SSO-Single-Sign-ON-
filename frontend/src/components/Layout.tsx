@@ -29,6 +29,7 @@ import {
   AdminPanelSettings as AdminPanelSettingsIcon,
   Apps as AppsIcon,
   DevicesOther as DevicesOtherIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -90,6 +91,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Active Sessions', icon: <DevicesOtherIcon />, path: '/sessions', group: 'Monitoring' },
     { text: 'Audit Logs', icon: <HistoryIcon />, path: '/audit', group: 'Monitoring' },
   ];
+
+  const rolesToCheck = currentUser?.roles || (currentUser?.role ? [currentUser.role] : []);
+  console.log('Current User Debug:', currentUser);
+  console.log('Roles found:', rolesToCheck);
+
+  const hasSettingsAccess = rolesToCheck.some((r: any) => {
+    const roleName = typeof r === 'string' ? r.toLowerCase() : (r.name || '').toLowerCase();
+    return roleName.includes('superadmin') || 
+           roleName.includes('super admin') || 
+           roleName.includes('appmanager') ||
+           roleName.includes('app manager');
+  });
+
+  if (hasSettingsAccess) {
+    menuItems.push({ text: 'Master Data', icon: <SettingsIcon />, path: '/settings/master-data', group: 'Settings' });
+  }
 
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
