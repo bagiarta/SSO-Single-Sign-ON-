@@ -11,59 +11,53 @@ async function runSetup() {
     
     // Regions
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_regions' AND xtype='U')
-      CREATE TABLE master_regions (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_regions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) NOT NULL UNIQUE
       )
     `);
 
     // Branches
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_branches' AND xtype='U')
-      CREATE TABLE master_branches (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_branches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         branch_code VARCHAR(50) UNIQUE,
         name VARCHAR(100) NOT NULL,
-        region_id UNIQUEIDENTIFIER REFERENCES master_regions(id) ON DELETE SET NULL
+        region_id UUID REFERENCES master_regions(id) ON DELETE SET NULL
       )
     `);
 
     // Locations
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_locations' AND xtype='U')
-      CREATE TABLE master_locations (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_locations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code VARCHAR(50) UNIQUE,
         name VARCHAR(100) NOT NULL,
-        address NVARCHAR(MAX)
+        address TEXT
       )
     `);
 
     // Departments
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_departments' AND xtype='U')
-      CREATE TABLE master_departments (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_departments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) NOT NULL UNIQUE
       )
     `);
 
     // Positions
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_positions' AND xtype='U')
-      CREATE TABLE master_positions (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_positions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) NOT NULL,
-        department_id UNIQUEIDENTIFIER REFERENCES master_departments(id) ON DELETE SET NULL
+        department_id UUID REFERENCES master_departments(id) ON DELETE SET NULL
       )
     `);
 
     // Grades
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_grades' AND xtype='U')
-      CREATE TABLE master_grades (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_grades (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code VARCHAR(50),
         name VARCHAR(100) NOT NULL
       )
@@ -71,18 +65,16 @@ async function runSetup() {
 
     // Employee Types
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_employee_types' AND xtype='U')
-      CREATE TABLE master_employee_types (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_employee_types (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) NOT NULL UNIQUE
       )
     `);
 
     // Cost Centers
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='master_cost_centers' AND xtype='U')
-      CREATE TABLE master_cost_centers (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS master_cost_centers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code VARCHAR(50) UNIQUE,
         name VARCHAR(100) NOT NULL
       )
@@ -119,13 +111,13 @@ async function runSetup() {
       IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('users') AND name = 'branch_id')
       BEGIN
         ALTER TABLE users ADD 
-          branch_id UNIQUEIDENTIFIER REFERENCES master_branches(id) ON DELETE SET NULL,
-          location_id UNIQUEIDENTIFIER REFERENCES master_locations(id) ON DELETE SET NULL,
-          department_id UNIQUEIDENTIFIER REFERENCES master_departments(id) ON DELETE SET NULL,
-          position_id UNIQUEIDENTIFIER REFERENCES master_positions(id) ON DELETE SET NULL,
-          grade_id UNIQUEIDENTIFIER REFERENCES master_grades(id) ON DELETE SET NULL,
-          emp_type_id UNIQUEIDENTIFIER REFERENCES master_employee_types(id) ON DELETE SET NULL,
-          cost_center_id UNIQUEIDENTIFIER REFERENCES master_cost_centers(id) ON DELETE SET NULL;
+          branch_id UUID REFERENCES master_branches(id) ON DELETE SET NULL,
+          location_id UUID REFERENCES master_locations(id) ON DELETE SET NULL,
+          department_id UUID REFERENCES master_departments(id) ON DELETE SET NULL,
+          position_id UUID REFERENCES master_positions(id) ON DELETE SET NULL,
+          grade_id UUID REFERENCES master_grades(id) ON DELETE SET NULL,
+          emp_type_id UUID REFERENCES master_employee_types(id) ON DELETE SET NULL,
+          cost_center_id UUID REFERENCES master_cost_centers(id) ON DELETE SET NULL;
       END
     `);
 

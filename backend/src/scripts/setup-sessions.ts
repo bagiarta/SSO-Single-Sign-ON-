@@ -8,18 +8,17 @@ async function runSetup() {
 
     // 1. Create Active Sessions Table
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='active_sessions' AND xtype='U')
-      CREATE TABLE active_sessions (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-        user_id UNIQUEIDENTIFIER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      CREATE TABLE IF NOT EXISTS active_sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         token_hash VARCHAR(255) NOT NULL,
         ip_address VARCHAR(45),
-        user_agent NVARCHAR(500),
-        device_info NVARCHAR(255),
-        created_at DATETIME2 DEFAULT GETDATE(),
-        expires_at DATETIME2 NOT NULL,
-        last_active_at DATETIME2 DEFAULT GETDATE(),
-        is_revoked BIT DEFAULT 0
+        user_agent VARCHAR(500),
+        device_info VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_revoked BOOLEAN DEFAULT false
       )
     `);
     logger.info('active_sessions table checked/created.');
@@ -41,13 +40,13 @@ async function runSetup() {
     // 4. Add user_agent and device_info columns to audit_logs if they don't exist
     await query(`
       IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('audit_logs') AND name = 'user_agent')
-      ALTER TABLE audit_logs ADD user_agent NVARCHAR(500)
+      ALTER TABLE audit_logs ADD user_agent VARCHAR(500)
     `);
     logger.info('audit_logs.user_agent column checked/added.');
 
     await query(`
       IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('audit_logs') AND name = 'device_info')
-      ALTER TABLE audit_logs ADD device_info NVARCHAR(255)
+      ALTER TABLE audit_logs ADD device_info VARCHAR(255)
     `);
     logger.info('audit_logs.device_info column checked/added.');
 

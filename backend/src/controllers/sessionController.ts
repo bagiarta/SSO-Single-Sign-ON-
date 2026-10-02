@@ -35,11 +35,11 @@ export async function getSessions(req: Request, res: Response) {
     }
 
     if (status === 'active') {
-      dbQuery += ` AND s.is_revoked = 0 AND s.expires_at > GETDATE()`;
+      dbQuery += ` AND s.is_revoked = false AND s.expires_at > CURRENT_TIMESTAMP`;
     } else if (status === 'revoked') {
-      dbQuery += ` AND s.is_revoked = 1`;
+      dbQuery += ` AND s.is_revoked = true`;
     } else if (status === 'expired') {
-      dbQuery += ` AND s.is_revoked = 0 AND s.expires_at <= GETDATE()`;
+      dbQuery += ` AND s.is_revoked = false AND s.expires_at <= CURRENT_TIMESTAMP`;
     }
 
     dbQuery += ` ORDER BY s.created_at DESC OFFSET $${paramIndex} ROWS FETCH NEXT $${paramIndex + 1} ROWS ONLY`;
@@ -59,11 +59,11 @@ export async function getSessions(req: Request, res: Response) {
     }
 
     if (status === 'active') {
-      countQuery += ` AND s.is_revoked = 0 AND s.expires_at > GETDATE()`;
+      countQuery += ` AND s.is_revoked = false AND s.expires_at > CURRENT_TIMESTAMP`;
     } else if (status === 'revoked') {
-      countQuery += ` AND s.is_revoked = 1`;
+      countQuery += ` AND s.is_revoked = true`;
     } else if (status === 'expired') {
-      countQuery += ` AND s.is_revoked = 0 AND s.expires_at <= GETDATE()`;
+      countQuery += ` AND s.is_revoked = false AND s.expires_at <= CURRENT_TIMESTAMP`;
     }
 
     const countResult = await query(countQuery, countParams);
@@ -154,11 +154,11 @@ export async function revokeSession(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    // Trigger backchannel logout BEFORE setting is_revoked = 1 so we can query client details
+    // Trigger backchannel logout BEFORE setting is_revoked = true so we can query client details
     await triggerBackchannelLogout(id as string);
 
     const result = await query(
-      'UPDATE active_sessions SET is_revoked = 1 WHERE id = $1',
+      'UPDATE active_sessions SET is_revoked = true WHERE id = $1',
       [id]
     );
 
@@ -197,7 +197,7 @@ export async function revokeAllUserSessions(req: Request, res: Response) {
 
     // Get active sessions of this user before revoking
     const activeSessionsRes = await query(
-      'SELECT id FROM active_sessions WHERE user_id = $1 AND is_revoked = 0',
+      'SELECT id FROM active_sessions WHERE user_id = $1 AND is_revoked = false',
       [userId]
     );
 
@@ -207,7 +207,7 @@ export async function revokeAllUserSessions(req: Request, res: Response) {
     }
 
     const result = await query(
-      'UPDATE active_sessions SET is_revoked = 1 WHERE user_id = $1 AND is_revoked = 0',
+      'UPDATE active_sessions SET is_revoked = true WHERE user_id = $1 AND is_revoked = false',
       [userId]
     );
 
@@ -246,7 +246,7 @@ export async function clientLogout(req: Request, res: Response) {
     }
 
     await query(
-      'UPDATE active_sessions SET is_revoked = 1 WHERE id = $1 AND is_revoked = 0',
+      'UPDATE active_sessions SET is_revoked = true WHERE id = $1 AND is_revoked = false',
       [session_id]
     );
 

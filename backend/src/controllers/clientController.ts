@@ -20,12 +20,13 @@ let configurationColumnReady: Promise<void> | null = null;
 function ensureConfigurationColumn(): Promise<void> {
   if (!configurationColumnReady) {
     configurationColumnReady = query(`
-      IF OBJECT_ID('client_applications', 'U') IS NOT NULL
-         AND COL_LENGTH('client_applications', 'configuration') IS NULL
+      DO $$
       BEGIN
-        ALTER TABLE client_applications ADD configuration NVARCHAR(MAX) NOT NULL
-          CONSTRAINT DF_client_applications_configuration DEFAULT '{}';
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='client_applications' AND column_name='configuration') THEN
+          ALTER TABLE client_applications ADD COLUMN configuration TEXT NOT NULL DEFAULT '{}';
+        END IF;
       END
+      $$;
     `).then(() => undefined).catch(error => {
       configurationColumnReady = null;
       throw error;
@@ -92,7 +93,7 @@ export async function createClient(req: Request, res: Response) {
     const result = await query(
       `INSERT INTO client_applications (name, description, client_id, client_secret, redirect_uris, configuration, access_type, status, created_at, updated_at)
        OUTPUT INSERTED.id, INSERTED.name, INSERTED.description, INSERTED.client_id, INSERTED.client_secret, INSERTED.redirect_uris, INSERTED.configuration, INSERTED.access_type, INSERTED.status, INSERTED.created_at
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, GETDATE(), GETDATE())`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       [
         name,
         description || '',
@@ -148,7 +149,7 @@ export async function updateClient(req: Request, res: Response) {
            configuration = COALESCE($4, configuration),
            access_type = COALESCE($5, access_type),
            status = COALESCE($6, status),
-           updated_at = GETDATE()
+           updated_at = CURRENT_TIMESTAMP
        OUTPUT INSERTED.id, INSERTED.name, INSERTED.description, INSERTED.client_id, INSERTED.redirect_uris, INSERTED.configuration, INSERTED.access_type, INSERTED.status, INSERTED.updated_at
        WHERE id = $7`,
       [name, description, urisStr, configuration ? JSON.stringify(configuration) : null, access_type, status, id]
@@ -188,7 +189,7 @@ export async function regenerateClientSecret(req: Request, res: Response) {
 
     const result = await query(
       `UPDATE client_applications 
-       SET client_secret = $1, updated_at = GETDATE()
+       SET client_secret = $1, updated_at = CURRENT_TIMESTAMP
        OUTPUT INSERTED.id, INSERTED.client_id, INSERTED.client_secret, INSERTED.name
        WHERE id = $2`,
       [newSecret, id]

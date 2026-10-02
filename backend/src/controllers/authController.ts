@@ -104,7 +104,7 @@ export async function login(req: Request, res: Response) {
 
     // Success login. Reset failed attempts
     await query(
-      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = GETDATE() WHERE id = $1',
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
       [user.id]
     );
 
@@ -138,8 +138,8 @@ export async function login(req: Request, res: Response) {
       // while the same user may remain logged in to other applications.
       const previousSessions = await query(
         `SELECT id FROM active_sessions
-         WHERE user_id = $1 AND is_revoked = 0 AND expires_at > GETDATE()
-           AND ISNULL(client_id, '') = ISNULL($2, '')`,
+         WHERE user_id = $1 AND is_revoked = false AND expires_at > CURRENT_TIMESTAMP
+           AND COALESCE(client_id, '') = COALESCE($2, '')`,
         [user.id, client_id || null]
       );
 
@@ -166,11 +166,11 @@ export async function login(req: Request, res: Response) {
 
       await query(
         `UPDATE active_sessions
-         SET is_revoked = 1
+         SET is_revoked = true
          WHERE user_id = $1
-           AND is_revoked = 0
-           AND expires_at > GETDATE()
-           AND ISNULL(client_id, '') = ISNULL($2, '')`,
+           AND is_revoked = false
+           AND expires_at > CURRENT_TIMESTAMP
+           AND COALESCE(client_id, '') = COALESCE($2, '')`,
         [user.id, client_id || null]
       );
 
@@ -302,7 +302,7 @@ export async function logout(req: Request, res: Response) {
         const decoded = jwt.verify(sessionCookie, JWT_SECRET as string) as any;
         // Revoke all active DB sessions for this user so the token cannot be reused
         await query(
-          `UPDATE active_sessions SET is_revoked = 1 WHERE user_id = $1 AND is_revoked = 0`,
+          `UPDATE active_sessions SET is_revoked = true WHERE user_id = $1 AND is_revoked = false`,
           [decoded.sub]
         );
       } catch {
@@ -375,7 +375,7 @@ export async function authorize(req: Request, res: Response) {
 
         // Verify the user still has an active session in the database
         const activeSessionResult = await query(
-          `SELECT id FROM active_sessions WHERE user_id = $1 AND is_revoked = 0 AND expires_at > GETDATE() ORDER BY expires_at DESC`,
+          `SELECT id FROM active_sessions WHERE user_id = $1 AND is_revoked = false AND expires_at > CURRENT_TIMESTAMP ORDER BY expires_at DESC`,
           [userId]
         );
 
@@ -547,7 +547,7 @@ export async function token(req: Request, res: Response) {
     // was issued. Do not mint a new token from a revoked SSO session.
     const sessionResult = await query(
       `SELECT id FROM active_sessions
-       WHERE id = $1 AND user_id = $2 AND is_revoked = 0 AND expires_at > GETDATE()`,
+       WHERE id = $1 AND user_id = $2 AND is_revoked = false AND expires_at > CURRENT_TIMESTAMP`,
       [authCode.session_id, authCode.user_id]
     );
     if (sessionResult.rows.length === 0) {
@@ -555,7 +555,7 @@ export async function token(req: Request, res: Response) {
     }
 
     // Mark code as used
-    await query('UPDATE authorization_codes SET is_used = 1 WHERE id = $1', [authCode.id]);
+    await query('UPDATE authorization_codes SET is_used = true WHERE id = $1', [authCode.id]);
 
     // Fetch user details for tokens
     const userResult = await query(
@@ -639,7 +639,7 @@ export async function userinfo(req: Request, res: Response) {
     // have been revoked because the user logged in again to the same client.
     const sessionResult = await query(
       `SELECT id FROM active_sessions
-       WHERE id = $1 AND user_id = $2 AND is_revoked = 0 AND expires_at > GETDATE()`,
+       WHERE id = $1 AND user_id = $2 AND is_revoked = false AND expires_at > CURRENT_TIMESTAMP`,
       [decoded.sid, decoded.sub]
     );
     if (sessionResult.rows.length === 0) {
@@ -715,7 +715,7 @@ export async function resetPassword(req: Request, res: Response) {
     const password_hash = await bcrypt.hash(password, salt);
 
     await query(
-      'UPDATE users SET password_hash = $1, force_password_change = 0, failed_login_attempts = 0, locked_until = NULL, updated_at = GETDATE() WHERE id = $2',
+      'UPDATE users SET password_hash = $1, force_password_change = false, failed_login_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [password_hash, userId]
     );
     

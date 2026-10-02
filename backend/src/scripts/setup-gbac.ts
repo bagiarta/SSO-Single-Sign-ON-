@@ -9,26 +9,22 @@ async function setupGBAC() {
     // 1. Create groups table
     logger.info('Creating groups table...');
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='groups' AND xtype='U')
-      BEGIN
-        CREATE TABLE groups (
-          id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS groups (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           name VARCHAR(100) UNIQUE NOT NULL,
-          description NVARCHAR(MAX),
-          created_at DATETIME2 DEFAULT GETDATE(),
-          updated_at DATETIME2 DEFAULT GETDATE()
+          description TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      END
     `);
 
     // 2. Create user_groups table
     logger.info('Creating user_groups table...');
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='user_groups' AND xtype='U')
-      CREATE TABLE user_groups (
-        user_id UNIQUEIDENTIFIER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        group_id UNIQUEIDENTIFIER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-        joined_at DATETIME2 DEFAULT GETDATE(),
+      CREATE TABLE IF NOT EXISTS user_groups (
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (user_id, group_id)
       )
     `);
@@ -50,11 +46,10 @@ async function setupGBAC() {
     // 4. Create group_allowed_applications table
     logger.info('Creating group_allowed_applications table...');
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='group_allowed_applications' AND xtype='U')
-      CREATE TABLE group_allowed_applications (
-        group_id UNIQUEIDENTIFIER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-        client_app_id UNIQUEIDENTIFIER NOT NULL REFERENCES client_applications(id) ON DELETE CASCADE,
-        granted_at DATETIME2 DEFAULT GETDATE(),
+      CREATE TABLE IF NOT EXISTS group_allowed_applications (
+        group_id UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        client_app_id UUID NOT NULL REFERENCES client_applications(id) ON DELETE CASCADE,
+        granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (group_id, client_app_id)
       )
     `);

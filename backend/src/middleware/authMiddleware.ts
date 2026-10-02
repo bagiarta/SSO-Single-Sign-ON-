@@ -56,7 +56,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
       if (new Date(session.expires_at) < new Date()) {
         await query(
-          'UPDATE active_sessions SET is_revoked = 1 WHERE id = $1 AND is_revoked = 0',
+          'UPDATE active_sessions SET is_revoked = true WHERE id = $1 AND is_revoked = false',
           [session.id]
         );
         return res.status(401).json({ error: 'Session expired' });
@@ -64,7 +64,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
 
       // Update last_active_at (fire-and-forget, don't block the request)
       query(
-        'UPDATE active_sessions SET last_active_at = GETDATE() WHERE id = $1',
+        'UPDATE active_sessions SET last_active_at = CURRENT_TIMESTAMP WHERE id = $1',
         [session.id]
       ).catch(err => logger.error('Failed to update last_active_at', { error: err.message }));
     }

@@ -1,11 +1,11 @@
 /**
- * Database Connection Management (MSSQL)
+ * Database Connection Management (PostgreSQL)
  * 
- * This module handles SQL Server database connections using mssql connection pooling
+ * This module handles PostgreSQL database connections using pg connection pooling
  * for optimal performance and resource management.
  */
 
-import sql from 'mssql';
+import { Pool, PoolConfig } from 'pg';
 import { config } from '../config/environment';
 import { logger } from '../utils/logger';
 import { getSecret } from '../config/secrets';
@@ -17,7 +17,7 @@ interface DatabaseStats {
 }
 
 export class DatabaseConnection {
-  private pool!: sql.ConnectionPool;
+  private pool!: Pool;
   private isConnected: boolean = false;
 
   constructor() {
@@ -28,24 +28,18 @@ export class DatabaseConnection {
   }
 
   private createPool() {
-    const dbConfig: sql.config = {
+    const dbConfig: PoolConfig = {
       user: config.database.user,
       password: getSecret('databasePassword'),
       database: config.database.name,
-      server: config.database.host,
+      host: config.database.host,
       port: config.database.port,
-      pool: {
-        max: config.database.maxConnections,
-        min: 0,
-        idleTimeoutMillis: 30000
-      },
-      options: {
-        encrypt: config.database.ssl,
-        trustServerCertificate: true, // Required for local dev or self-signed certs
-      }
+      max: config.database.maxConnections,
+      idleTimeoutMillis: 30000,
+      ssl: config.database.ssl ? { rejectUnauthorized: false } : false
     };
 
-    this.pool = new sql.ConnectionPool(dbConfig);
+    this.pool = new Pool(dbConfig);
     
     this.pool.on('error', (err: any) => {
       logger.error('Database pool error', { error: err.message, stack: err.stack });
@@ -57,10 +51,11 @@ export class DatabaseConnection {
    */
   async connect(): Promise<void> {
     try {
-      await this.pool.connect();
+      const client = await this.pool.connect();
       
       // Test connection
-      await this.pool.request().query('SELECT GETDATE()');
+      await client.query('SELECT NOW()');
+      client.release();
 
       this.isConnected = true;
       logger.info('Database connected successfully', {
@@ -83,42 +78,24 @@ export class DatabaseConnection {
 
   /**
    * Execute a query with automatic connection management
-   * Automatically replaces PostgreSQL syntax to MSSQL:
-   * - $1, $2 to @param1, @param2
-   * - ILIKE to LIKE
-   * - NOW() to GETDATE()
    */
   async query<T = any>(text: string, params: any[] = []): Promise<{ rows: T[], rowCount: number }> {
     const start = Date.now();
     
     try {
-      const request = this.pool.request();
-      
-      // Bind parameters
-      if (params && params.length > 0) {
-        params.forEach((param, index) => {
-          request.input(`param${index + 1}`, param);
-        });
-      }
-
-      // Translate PostgreSQL syntax to MSSQL
-      let mssqlQuery = text.replace(/\$(\d+)/g, '@param$1');
-      mssqlQuery = mssqlQuery.replace(/\bILIKE\b/g, 'LIKE');
-      mssqlQuery = mssqlQuery.replace(/\bNOW\(\)/gi, 'GETDATE()');
-
-      const result = await request.query(mssqlQuery);
+      const result = await this.pool.query(text, params);
       const duration = Date.now() - start;
       
       if (duration > 1000) {
         logger.warn('Slow query detected', {
-          query: mssqlQuery,
+          query: text,
           duration,
         });
       }
       
       return {
-        rows: result.recordset || [],
-        rowCount: result.rowsAffected[0] || 0
+        rows: result.rows,
+        rowCount: result.rowCount || 0
       };
     } catch (error) {
       logger.error('Database query error', {
@@ -134,49 +111,39 @@ export class DatabaseConnection {
    * Execute a transaction with automatic rollback on error
    */
   async transaction<T>(callback: (client: { query: (text: string, params?: any[]) => Promise<{rows: any[], rowCount: number}> }) => Promise<T>): Promise<T> {
-    const transaction = new sql.Transaction(this.pool);
+    const client = await this.pool.connect();
     
     try {
-      await transaction.begin();
+      await client.query('BEGIN');
       
-      const client = {
+      const wrappedClient = {
         query: async (text: string, params: any[] = []) => {
-          const request = transaction.request();
-          
-          if (params && params.length > 0) {
-            params.forEach((param, index) => {
-              request.input(`param${index + 1}`, param);
-            });
-          }
-
-          let mssqlQuery = text.replace(/\$(\d+)/g, '@param$1');
-          mssqlQuery = mssqlQuery.replace(/\bILIKE\b/g, 'LIKE');
-          mssqlQuery = mssqlQuery.replace(/\bNOW\(\)/gi, 'GETDATE()');
-
-          const result = await request.query(mssqlQuery);
+          const result = await client.query(text, params);
           return {
-            rows: result.recordset || [],
-            rowCount: result.rowsAffected[0] || 0
+            rows: result.rows,
+            rowCount: result.rowCount || 0
           };
         }
       };
       
       // Pass the client to the callback so it can execute within the transaction
-      const result = await callback(client);
+      const result = await callback(wrappedClient);
       
-      await transaction.commit();
+      await client.query('COMMIT');
       logger.debug('Transaction completed successfully');
       return result;
     } catch (error) {
       try {
-        await transaction.rollback();
+        await client.query('ROLLBACK');
       } catch (rollbackError) {
-        // Ignore rollback errors if transaction was already closed
+        // Ignore rollback errors
       }
       logger.error('Transaction rolled back', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -185,9 +152,9 @@ export class DatabaseConnection {
    */
   getStats(): DatabaseStats {
     return {
-      totalConnections: this.pool.pool ? (this.pool as any).pool.size : 0,
-      idleConnections: this.pool.pool ? (this.pool as any).pool.available : 0,
-      waitingClients: this.pool.pool ? (this.pool as any).pool.pending : 0,
+      totalConnections: this.pool.totalCount,
+      idleConnections: this.pool.idleCount,
+      waitingClients: this.pool.waitingCount,
     };
   }
 
@@ -200,8 +167,8 @@ export class DatabaseConnection {
         return false;
       }
 
-      const result = await this.pool.request().query('SELECT 1 as health');
-      return result.recordset.length > 0 && result.recordset[0].health === 1;
+      const result = await this.pool.query('SELECT 1 as health');
+      return result.rows.length > 0 && result.rows[0].health === 1;
     } catch (error) {
       logger.error('Database health check failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -223,14 +190,14 @@ export class DatabaseConnection {
     const start = Date.now();
     
     try {
-      const versionResult = await this.pool.request().query('SELECT @@VERSION as version');
+      const versionResult = await this.pool.query('SELECT version() as version');
       const responseTime = Date.now() - start;
       
       return {
         status: 'healthy',
         responseTime,
         stats: this.getStats(),
-        version: versionResult.recordset[0]?.version,
+        version: versionResult.rows[0]?.version,
       };
     } catch (error) {
       return {
@@ -248,7 +215,7 @@ export class DatabaseConnection {
   async close(): Promise<void> {
     try {
       if (this.pool) {
-        await this.pool.close();
+        await this.pool.end();
       }
       this.isConnected = false;
       logger.info('Database connections closed');
@@ -262,7 +229,7 @@ export class DatabaseConnection {
   /**
    * Get the underlying pool instance
    */
-  getPool(): sql.ConnectionPool {
+  getPool(): Pool {
     return this.pool;
   }
 

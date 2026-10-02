@@ -70,11 +70,11 @@ auditRouter.get('/stats', async (_req: Request, res: Response) => {
 
     // Recent activity (last 7 days)
     const recentActivity = await query(`
-      SELECT CONVERT(date, timestamp) as date, COUNT(*) as count 
+      SELECT DATE(timestamp) as date, COUNT(*) as count 
       from audit_logs 
-      WHERE timestamp >= DATEADD(day, -7, GETDATE())
-      GROUP BY CONVERT(date, timestamp)
-      ORDER BY CONVERT(date, timestamp) ASC
+      WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days'
+      GROUP BY DATE(timestamp)
+      ORDER BY DATE(timestamp) ASC
     `);
 
     res.json({

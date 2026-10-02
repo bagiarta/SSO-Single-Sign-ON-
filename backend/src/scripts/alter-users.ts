@@ -28,7 +28,7 @@ async function alterUsersTable() {
       { name: 'emp_type', type: 'VARCHAR(50)' },
       { name: 'start_work', type: 'DATE' },
       { name: 'last_day', type: 'DATE' },
-      { name: 'remarks', type: 'NVARCHAR(MAX)' }
+      { name: 'remarks', type: 'TEXT' }
     ];
 
     for (const col of columnsToAdd) {

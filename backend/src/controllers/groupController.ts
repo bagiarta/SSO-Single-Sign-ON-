@@ -9,20 +9,19 @@ export const getAllGroups = async (_req: Request, res: Response) => {
         g.id, g.name, g.description, g.created_at,
         (SELECT COUNT(*) FROM user_groups ug WHERE ug.group_id = g.id) as user_count,
         (
-          SELECT ca.id, ca.name 
+          SELECT json_agg(json_build_object('id', ca.id, 'name', ca.name))
           FROM group_allowed_applications gaa
           JOIN client_applications ca ON gaa.client_app_id = ca.id
           WHERE gaa.group_id = g.id
-          FOR JSON PATH
         ) as allowed_apps
       FROM groups g
       ORDER BY g.name ASC
     `);
 
-    // Parse JSON string to array for allowed_apps
+    // Parse JSON string to array for allowed_apps if needed
     const formattedGroups = result.rows.map((g: any) => ({
       ...g,
-      allowed_apps: g.allowed_apps ? JSON.parse(g.allowed_apps) : []
+      allowed_apps: typeof g.allowed_apps === 'string' ? JSON.parse(g.allowed_apps) : (g.allowed_apps || [])
     }));
 
     return res.json(formattedGroups);
@@ -102,7 +101,7 @@ export const updateGroup = async (req: Request, res: Response) => {
   try {
     await query(`
       UPDATE groups 
-      SET name = $1, description = $2, updated_at = GETDATE()
+      SET name = $1, description = $2, updated_at = CURRENT_TIMESTAMP
       WHERE id = $3
     `, [name, description, id]);
 

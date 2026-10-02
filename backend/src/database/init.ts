@@ -163,7 +163,7 @@ async function initializeCache(result: InitializationResult): Promise<void> {
 async function testDatabaseOperations(): Promise<void> {
   try {
     // Test basic query
-    const result = await db.query('SELECT GETDATE() as currentTime, @@VERSION as version');
+    const result = await db.query('SELECT CURRENT_TIMESTAMP as currentTime, version() as version');
     
     logger.debug('Database test query successful', {
       currentTime: result.rows[0]?.currentTime,

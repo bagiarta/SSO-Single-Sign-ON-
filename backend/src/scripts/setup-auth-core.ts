@@ -8,16 +8,15 @@ async function setupAuthCoreTable() {
 
     // Create authorization_codes table
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='authorization_codes' AND xtype='U')
-      CREATE TABLE authorization_codes (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS authorization_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code VARCHAR(255) UNIQUE NOT NULL,
         client_id VARCHAR(255) NOT NULL,
-        user_id UNIQUEIDENTIFIER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        redirect_uri NVARCHAR(MAX) NOT NULL,
-        expires_at DATETIME2 NOT NULL,
-        is_used BIT DEFAULT 0,
-        created_at DATETIME2 DEFAULT GETDATE()
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        redirect_uri TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        is_used BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     logger.info('authorization_codes table checked/created.');

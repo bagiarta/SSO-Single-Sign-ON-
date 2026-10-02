@@ -314,13 +314,13 @@ export async function updateUser(req: Request, res: Response) {
          grade_id = COALESCE($18, grade_id),
          emp_type_id = COALESCE($19, emp_type_id),
          cost_center_id = COALESCE($20, cost_center_id),
-         updated_at = GETDATE() WHERE id = $21`,
+         updated_at = CURRENT_TIMESTAMP WHERE id = $21`,
         [first_name, last_name, status, pwd_hash, fpcParam, allowDashboardParam, nip, email, regency, join_date, start_work, last_day, remarks, branch_id !== undefined ? (branch_id || null) : undefined, location_id !== undefined ? (location_id || null) : undefined, department_id !== undefined ? (department_id || null) : undefined, position_id !== undefined ? (position_id || null) : undefined, grade_id !== undefined ? (grade_id || null) : undefined, emp_type_id !== undefined ? (emp_type_id || null) : undefined, cost_center_id !== undefined ? (cost_center_id || null) : undefined, id]
       );
 
       await client.query(
         `UPDATE user_profiles SET birth_date = COALESCE($1, birth_date), gender = COALESCE($2, gender),
-         bio = COALESCE($3, bio), timezone = COALESCE($4, timezone), locale = COALESCE($5, locale), updated_at = GETDATE() 
+         bio = COALESCE($3, bio), timezone = COALESCE($4, timezone), locale = COALESCE($5, locale), updated_at = CURRENT_TIMESTAMP 
          WHERE user_id = $6`,
         [safeBirthDate, gender, bio, timezone, locale, id]
       );
@@ -356,7 +356,7 @@ export async function deleteUser(req: Request, res: Response) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    await query('UPDATE users SET deleted_at = GETDATE(), status = $1 WHERE id = $2', ['disabled', id]);
+    await query('UPDATE users SET deleted_at = CURRENT_TIMESTAMP, status = $1 WHERE id = $2', ['disabled', id]);
     
     await createAuditLog('USER_DELETE', null, 'users', 'soft_delete', 'success', { userId: id, email: userResult.rows[0].email });
 
@@ -380,7 +380,7 @@ export async function toggleUserStatus(req: Request, res: Response) {
     }
 
     const result = await query(
-      'UPDATE users SET status = $1, updated_at = GETDATE() OUTPUT INSERTED.id, INSERTED.email, INSERTED.status WHERE id = $2 AND deleted_at IS NULL',
+      'UPDATE users SET status = $1, updated_at = CURRENT_TIMESTAMP OUTPUT INSERTED.id, INSERTED.email, INSERTED.status WHERE id = $2 AND deleted_at IS NULL',
       [status, id]
     );
 
@@ -404,7 +404,7 @@ export async function resetMfa(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const result = await query(
-      'UPDATE users SET mfa_enabled = 0, mfa_secret = NULL, updated_at = GETDATE() OUTPUT INSERTED.id WHERE id = $1 AND deleted_at IS NULL',
+      'UPDATE users SET mfa_enabled = 0, mfa_secret = NULL, updated_at = CURRENT_TIMESTAMP OUTPUT INSERTED.id WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -423,7 +423,7 @@ export async function unlockAccount(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const result = await query(
-      'UPDATE users SET locked_until = NULL, failed_login_attempts = 0, updated_at = GETDATE() OUTPUT INSERTED.id WHERE id = $1 AND deleted_at IS NULL',
+      'UPDATE users SET locked_until = NULL, failed_login_attempts = 0, updated_at = CURRENT_TIMESTAMP OUTPUT INSERTED.id WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -442,7 +442,7 @@ export async function forcePasswordChange(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const result = await query(
-      'UPDATE users SET force_password_change = 1, updated_at = GETDATE() OUTPUT INSERTED.id WHERE id = $1 AND deleted_at IS NULL',
+      'UPDATE users SET force_password_change = true, updated_at = CURRENT_TIMESTAMP OUTPUT INSERTED.id WHERE id = $1 AND deleted_at IS NULL',
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -461,7 +461,7 @@ export async function revokeAllSessions(req: Request, res: Response) {
   try {
     const { id } = req.params;
     await query(
-      'UPDATE user_sessions SET is_active = 0, expires_at = GETDATE() WHERE user_id = $1 AND is_active = 1',
+      'UPDATE user_sessions SET is_active = 0, expires_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND is_active = 1',
       [id]
     );
     await createAuditLog('USER_REVOKE_SESSIONS', null, 'users', 'revoke_sessions', 'success', { userId: id });

@@ -8,32 +8,30 @@ async function setupClientAppsTable() {
 
     // Create client_applications table
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='client_applications' AND xtype='U')
-      CREATE TABLE client_applications (
-        id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+      CREATE TABLE IF NOT EXISTS client_applications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(255) NOT NULL,
-        description NVARCHAR(MAX),
+        description TEXT,
         client_id VARCHAR(255) UNIQUE NOT NULL,
         client_secret VARCHAR(255) NOT NULL,
-        redirect_uris NVARCHAR(MAX) NOT NULL, -- Stored as JSON array
-        configuration NVARCHAR(MAX) NOT NULL DEFAULT '{}', -- Client integration settings as JSON
+        redirect_uris TEXT NOT NULL, -- Stored as JSON array
+        configuration TEXT NOT NULL DEFAULT '{}', -- Client integration settings as JSON
         status VARCHAR(50) DEFAULT 'active',
-        created_at DATETIME2 DEFAULT GETDATE(),
-        updated_at DATETIME2 DEFAULT GETDATE()
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
 
       IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('client_applications') AND name = 'configuration')
-        ALTER TABLE client_applications ADD configuration NVARCHAR(MAX) NOT NULL CONSTRAINT DF_client_applications_configuration DEFAULT '{}'
+        ALTER TABLE client_applications ADD configuration TEXT NOT NULL CONSTRAINT DF_client_applications_configuration DEFAULT '{}'
     `);
     logger.info('client_applications table checked/created.');
 
     // Create user_allowed_applications table
     await query(`
-      IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='user_allowed_applications' AND xtype='U')
-      CREATE TABLE user_allowed_applications (
-        user_id UNIQUEIDENTIFIER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        client_app_id UNIQUEIDENTIFIER NOT NULL REFERENCES client_applications(id) ON DELETE CASCADE,
-        created_at DATETIME2 DEFAULT GETDATE(),
+      CREATE TABLE IF NOT EXISTS user_allowed_applications (
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        client_app_id UUID NOT NULL REFERENCES client_applications(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (user_id, client_app_id)
       )
     `);

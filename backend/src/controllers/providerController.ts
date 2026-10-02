@@ -17,7 +17,7 @@ export async function createAuditLog(
   try {
     await query(
       `INSERT INTO audit_logs (event_type, user_id, resource, action, result, details, ip_address, user_agent, device_info, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, GETDATE())`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)`,
       [eventType, userId, resource, action, result, JSON.stringify(details), ipAddress || null, userAgent || null, deviceInfo || null]
     );
   } catch (error) {
@@ -80,7 +80,7 @@ export async function createProvider(req: Request, res: Response) {
     const result = await query(
       `INSERT INTO identity_providers (name, type, status, configuration, metadata, created_at, updated_at)
        OUTPUT INSERTED.id, INSERTED.name, INSERTED.type, INSERTED.status, INSERTED.configuration, INSERTED.metadata, INSERTED.created_at, INSERTED.updated_at
-       VALUES ($1, $2, $3, $4, $5, GETDATE(), GETDATE())`,
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
       [
         name,
         type,
@@ -132,7 +132,7 @@ export async function updateProvider(req: Request, res: Response) {
            status = COALESCE($3, status),
            configuration = COALESCE($4, configuration),
            metadata = COALESCE($5, metadata),
-           updated_at = GETDATE()
+           updated_at = CURRENT_TIMESTAMP
        OUTPUT INSERTED.id, INSERTED.name, INSERTED.type, INSERTED.status, INSERTED.configuration, INSERTED.metadata, INSERTED.created_at, INSERTED.updated_at
        WHERE id = $6`,
       [
@@ -211,7 +211,7 @@ export async function toggleProviderStatus(req: Request, res: Response) {
     }
 
     const result = await query(
-      'UPDATE identity_providers SET status = $1, updated_at = GETDATE() OUTPUT INSERTED.id, INSERTED.name, INSERTED.status, INSERTED.type WHERE id = $2',
+      'UPDATE identity_providers SET status = $1, updated_at = CURRENT_TIMESTAMP OUTPUT INSERTED.id, INSERTED.name, INSERTED.status, INSERTED.type WHERE id = $2',
       [status, id]
     );
 
